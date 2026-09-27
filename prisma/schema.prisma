@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+ model User{
+        id String @id @default(cuid())
+        username String @unique
+        email String @unique
+        password String
+        ppUrl String? @map("pp_url")
+        isEmailVerified Boolean @default(false)
+        
+        //relations
+        posts Post[]
+        comments Comment[]
+        leaderboardEntries Leaderboard[]
+        emailVT emailVerificationToken[]
+        passwordRT passwordResetToken[]
+        
+        createdAt DateTime @default(now())
+        updatedAt DateTime @default(now())
+        
+        @@map("users")
+        }
+        
+        model Post{
+        id String @id @default(uuid())
+        userId String @map("user_id")
+        imageUrl String @map("image_url")
+        contentDescription String? @map("content_description")
+        
+        targetCoordinates Coordinate[]
+        user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+        comments Comment[]
+        leaderboard Leaderboard[]
+        
+        createdAt DateTime @default(now())
+        
+        @@map("posts")
+        
+        }
+        
+        model Coordinate{
+        id String @id @default(uuid())
+        postId String @map("post_id")
+        
+        //storing coordinates as percentage due to screen size
+        
+        x Float
+        y Float
+        radius Float @default(5.0)
+        label String?
+        
+        //Relation
+        post Post @relation(fields:[postId],references:[id],onDelete:Cascade)
+        @@map("coordinates")
+        }
+        
+        
+        model Leaderboard{
+        id String @id @default(uuid())
+        postId String @map("post_id")
+        userId String @map("user_id")
+        score Int
+        timer Int
+        
+        post Post @relation(fields:[postId],references:[id],onDelete:Cascade)
+        user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+        
+        @@unique([postId,userId])
+        @@map("leaderboards")
+        }
+        
+        
+        model Comment{
+        id String @id @default(uuid())
+        postId String @map("post_id")
+        userId String @map("user_id")
+        content String
+        likes Int @default(0)
+        dislikes Int @default(0)
+        
+        parentId String? @map("parent_id")
+        parent Comment? @relation("CommentReplies", fields:[parentId],references:[id],onDelete:Cascade)
+        replies Comment[] @relation("CommentReplies")
+        
+        post Post @relation(fields:[postId],references:[id],onDelete:Cascade)
+        user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+        
+        
+        createdAt DateTime @default(now())
+        
+        @@map("comments")
+        }
+
+
+        model emailVerificationToken{
+          id String @id @default(uuid())
+          userId String
+          token String @unique
+          expiresAt DateTime
+          user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+
+        }
+
+        model passwordResetToken{
+          id String @id @default(uuid())
+          userId String
+          token String @unique
+          expiresAt DateTime
+          user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+
+
+        }
