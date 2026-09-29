@@ -2,7 +2,7 @@ import {prisma} from '../../config/prisma'
 import type { postUpload,postUpdate} from './post.validation'
 
 
-export async function getPost(page=1,limit=10){
+export async function getPosts(page=1,limit=10){
     try{
         const skip = (page -1)* limit;
         const result = await prisma.post.findMany({
@@ -202,4 +202,63 @@ export async function updatePost(pId:any,uId:any,data:postUpdate){
     }catch(error){
         throw error
     }
+}
+
+export async function handlePostVote(userId:string,postId:string,voteType:"LIKE"|"DISLIKE"){
+    const existingPost = await prisma.post.findUnique({
+        where: { id: postId }
+    });
+
+    if (!existingPost) {
+        throw new Error("Post not found.");
+    }
+
+    const existingVote = await prisma.postVote.findUnique({
+        where: {
+            userId_postId: { userId, postId }
+        }
+    });
+
+   
+    return await prisma.$transaction(async (tx)=>{
+        if(!existingVote){
+            await tx.postVote.create({
+               data:{
+                userId,
+                postId,
+                type:voteType
+               }
+            })
+        
+
+        return await tx.post.update({
+            where:{id:postId},
+            data:voteType === "LIKE" ? {likes:{increment:1}}:{dislikes:{increment:1}}
+        })
+
+    }
+        if(existingVote.type === voteType){
+            await tx.postVote.delete({
+                where:{id:existingVote.id}
+            });
+
+
+            return await tx.post.update({
+                where:{id:postId},
+                data:voteType === "LIKE" ? {likes:{decrement:1}}:{dislikes:{decrement:1}}
+            });
+        }else{
+            await tx.postVote.update({
+                where:{id:existingVote.id},
+                data:{type:voteType}
+            })
+
+            return await tx.post.update({
+                where:{id:postId},
+                data:voteType === "LIKE"
+                ? {likes:{increment:1},dislikes:{decrement:1}}:
+                {likes:{decrement:1},dislikes:{increment:1}}
+            })
+        }
+    })
 }

@@ -1,10 +1,7 @@
-import express from 'express'
+import app from "./app";
 
+const PORT = process.env.PORT ||  4000;
 
-const app = express()
-const port = Number(process.env.PORT ?? 4000);
-
-
-app.listen(port,()=>{
-    console.log("Functioning")
+app.listen(PORT,()=>{
+    console.log("Server running on port ${PORT}")
 })

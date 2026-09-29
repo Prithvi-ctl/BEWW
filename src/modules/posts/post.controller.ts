@@ -145,3 +145,32 @@ export async function updatePost(req:Request,res:Response,next:NextFunction){
         })
     }
 }
+
+export async function votePostHandler(req: Request, res: Response, next: NextFunction) {
+    const postId = req.params.postId;
+    const { type } = req.body; // Expects { type: "LIKE" } or { type: "DISLIKE" }
+    const userId = req.body.userId; // Swap to req.user.id once auth is implemented
+
+    if (!postId || typeof postId !== "string") {
+        return res.status(400).json({ success: false, message: "Invalid postId" });
+    }
+
+    if (!type || !["LIKE", "DISLIKE"].includes(type)) {
+        return res.status(400).json({ success: false, message: "Invalid vote type. Must be 'LIKE' or 'DISLIKE'." });
+    }
+
+    try {
+        const result = await postService.handlePostVote(userId, postId, type);
+
+        return res.status(200).json({
+            success: true,
+            message: "Post vote updated successfully",
+            data: result,
+        });
+    } catch (error: any) {
+        return res.status(400).json({
+            success: false,
+            message: error.message || "Failed to vote on post",
+        });
+    }
+}

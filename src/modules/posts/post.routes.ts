@@ -11,5 +11,6 @@ router.get('/posts/:id',postController.getPostById)
 router.post('/posts/:id',authenticate,postController.updatePost)
 router.post('/posts',authenticate,postController.createPost)
 router.post('/posts:id',authenticate,postController.deletePost)
+router.patch("/:postId/vote",authenticate, postController.votePostHandler);
 
 export default router

@@ -124,3 +124,61 @@ export async function createComment(pId:string,uId:string,data:commentUpload){
             }
     })
 }
+
+
+export async function handleCommentVote(userId: string, postId: string, commentId: string, voteType: "LIKE" | "DISLIKE") {
+    // 1. Verify the comment exists AND belongs to this specific post
+    const existingComment = await prisma.comment.findFirst({
+        where: { id: commentId, postId: postId }
+    });
+
+    if (!existingComment) {
+        throw new Error("Comment not found for this post.");
+    }
+
+    // 2. Check if this user has already voted on this comment
+    const existingVote = await prisma.commentVote.findUnique({
+        where: {
+            userId_commentId: { userId, commentId }
+        }
+    });
+
+    return await prisma.$transaction(async (tx) => {
+        // SCENARIO 1: No previous vote -> Create it and increment counter
+        if (!existingVote) {
+            await tx.commentVote.create({
+                data: { userId, commentId, type: voteType }
+            });
+
+            return await tx.comment.update({
+                where: { id: commentId },
+                data: voteType === "LIKE" ? { likes: { increment: 1 } } : { dislikes: { increment: 1 } }
+            });
+        } 
+
+        // SCENARIO 2: Clicking the exact same button again -> Delete vote (Toggle off)
+        if (existingVote.type === voteType) {
+            await tx.commentVote.delete({
+                where: { id: existingVote.id }
+            });
+
+            return await tx.comment.update({
+                where: { id: commentId },
+                data: voteType === "LIKE" ? { likes: { decrement: 1 } } : { dislikes: { decrement: 1 } }
+            });
+        } 
+
+        // SCENARIO 3: Switching from Like to Dislike (or vice versa)
+        await tx.commentVote.update({
+            where: { id: existingVote.id },
+            data: { type: voteType }
+        });
+
+        return await tx.comment.update({
+            where: { id: commentId },
+            data: voteType === "LIKE" 
+                ? { likes: { increment: 1 }, dislikes: { decrement: 1 } } 
+                : { likes: { decrement: 1 }, dislikes: { increment: 1 } }
+        });
+    });
+}

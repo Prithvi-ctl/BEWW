@@ -154,3 +154,38 @@ export async function commentCreationHandler(req: Request, res: Response, next: 
         next(error)
     }
 }
+
+
+export async function voteCommentHandler(req: Request, res: Response, next: NextFunction) {
+    const postId = req.params.postId;
+    const commentId = req.params.commentId;
+    const { type } = req.body; // Expects { type: "LIKE" } or { type: "DISLIKE" }
+    const userId = req.body.userId; // Swap to req.user.id once auth is active
+
+    if (!postId || !commentId) {
+        return res.status(400).json({ success: false, message: "Missing postId or commentId" });
+    }
+
+    if (typeof postId !== "string" || typeof commentId !== "string") {
+        return res.status(400).json({ success: false, message: "Invalid route parameters." });
+    }
+    
+    if (!type || !["LIKE", "DISLIKE"].includes(type)) {
+        return res.status(400).json({ success: false, message: "Invalid vote type. Must be 'LIKE' or 'DISLIKE'." });
+    }
+
+    try {
+        const result = await commentService.handleCommentVote(userId, postId, commentId, type);
+
+        return res.status(200).json({
+            success: true,
+            message: "Comment vote updated successfully",
+            data: result,
+        });
+    } catch (error: any) {
+        return res.status(400).json({
+            success: false,
+            message: error.message || "Failed to vote on comment",
+        });
+    }
+}
